@@ -1,6 +1,6 @@
 <Project Sdk="Microsoft.NET.Sdk">
     <PropertyGroup>
-        <TargetFramework>net472</TargetFramework>
+        <TargetFramework>net35</TargetFramework>
         <AssemblyName>Assembly-CSharp.mm</AssemblyName>
         <LangVersion>latest</LangVersion>
     </PropertyGroup>
@@ -22,9 +22,6 @@
         </Reference>
         <Reference Include="UnityEngine.JSONSerializeModule, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null">
             <HintPath>../vanilla/UnityEngine.JSONSerializeModule.dll</HintPath>
-        </Reference>
-        <Reference Include="UnityEngine.InputLegacyModule, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null">
-            <HintPath>../vanilla/UnityEngine.InputLegacyModule.dll</HintPath>
         </Reference>
     </ItemGroup>
     <ItemGroup>
