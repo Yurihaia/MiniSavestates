@@ -1,8 +1,6 @@
 using System.Collections;
 using System.Reflection;
 using UnityEngine;
-using GlobalEnums;
-using USceneManager = UnityEngine.SceneManagement.SceneManager;
 using MonoMod;
 using System.IO;
 using System;
@@ -95,55 +93,69 @@ namespace Patches
             var saveScene = savedState.saveScene;
             var savePos = savedState.savePos;
 
-            if (savedPd == null || string.IsNullOrEmpty(saveScene))
+            cameraLockArea = (
+                cameraLockArea ??
+                typeof(CameraController).GetField("currentLockArea", BindingFlags.Instance | BindingFlags.NonPublic)
+            );
+            GameManager.instance.ChangeToScene("Room_Sly_Storeroom", "", 0f);
+            while (UnityEngine.SceneManagement.SceneManager.GetActiveScene().name != "Room_Sly_Storeroom")
             {
-                yield break;
+                yield return null;
             }
-            GameManager.instance.entryGateName = "dreamGate";
-            GameManager.instance.startedOnThisScene = true;
-            USceneManager.LoadScene("Room_Sly_Storeroom");
-            yield return new WaitUntil(() => USceneManager.GetActiveScene().name == "Room_Sly_Storeroom");
             GameManager.instance.sceneData = (SceneData.instance = JsonUtility.FromJson<SceneData>(JsonUtility.ToJson(savedSd)));
             GameManager.instance.ResetSemiPersistentItems();
             yield return null;
+            HeroController.instance.gameObject.transform.position = savePos;
             PlayerData.instance = (GameManager.instance.playerData = (HeroController.instance.playerData = JsonUtility.FromJson<PlayerData>(JsonUtility.ToJson(savedPd))));
-            GameManager.instance.BeginSceneTransition(new GameManager.SceneLoadInfo
+            GameManager.instance.ChangeToScene(saveScene, "", 0.4f);
+            try
             {
-                SceneName = saveScene,
-                HeroLeaveDirection = GatePosition.unknown,
-                EntryGateName = "dreamGate",
-                EntryDelay = 0f,
-                WaitForSceneTransitionCameraFade = false,
-                Visualization = 0,
-                AlwaysUnloadUnusedAssets = true
-            });
-            cameraGameplayScene.SetValue(GameManager.instance.cameraCtrl, true);
-            GameManager.instance.cameraCtrl.PositionToHero(false);
-            if (lockArea != null)
-            {
+                cameraLockArea.SetValue(GameManager.instance.cameraCtrl, lockArea);
                 GameManager.instance.cameraCtrl.LockToArea(lockArea as CameraLockArea);
+                cameraGameplayScene.SetValue(GameManager.instance.cameraCtrl, true);
             }
-            yield return new WaitUntil(() => USceneManager.GetActiveScene().name == saveScene);
-            GameManager.instance.cameraCtrl.FadeSceneIn();
-            HeroController.instance.TakeMP(1);
-            HeroController.instance.AddMPChargeSpa(1);
+            catch (Exception message)
+            {
+                Debug.LogError(message);
+            }
+            yield return new WaitUntil(() => UnityEngine.SceneManagement.SceneManager.GetActiveScene().name == saveScene);
+            HeroController.instance.playerData = PlayerData.instance;
+            HeroController.instance.geoCounter.playerData = PlayerData.instance;
+            HeroController.instance.geoCounter.TakeGeo(0);
+            if (PlayerData.instance.MPCharge >= PlayerData.instance.maxMP)
+            {
+                int tmpMp = PlayerData.instance.MPCharge;
+                HeroController.instance.TakeMP(PlayerData.instance.MPCharge);
+                yield return null;
+                HeroController.instance.AddMPChargeSpa(tmpMp);
+            }
+            else
+            {
+                HeroController.instance.AddMPChargeSpa(1);
+                yield return null;
+                HeroController.instance.TakeMP(1);
+            }
+            if (PlayerData.instance.MPReserveMax > 0)
+            {
+                int tmpReserve = PlayerData.instance.MPReserve;
+                HeroController.instance.TakeReserveMP(PlayerData.instance.MPReserve);
+                yield return null;
+                HeroController.instance.AddMPChargeSpa(tmpReserve);
+            }
+            
+            //Console.AddLine("LoadStateCoro end of func: " + data.savedPd.hazardRespawnLocation.ToString());
+            //HeroController.instance.SetHazardRespawn(savedPd.hazardRespawnLocation, savedPd.hazardRespawnFacingRight);
+            HeroController.instance.proxyFSM.SendEvent("HeroCtrl-HeroDamaged");
+            HeroAnimationController component = HeroController.instance.GetComponent<HeroAnimationController>();
+            typeof(HeroAnimationController).GetField("pd", BindingFlags.Instance | BindingFlags.NonPublic).SetValue(component, PlayerData.instance);
+           
             HeroController.instance.TakeHealth(1);
             HeroController.instance.AddHealth(1);
-            HeroController.instance.geoCounter.geoTextMesh.text = savedPd.geo.ToString();
             GameCameras.instance.hudCanvas.gameObject.SetActive(true);
-            cameraGameplayScene.SetValue(GameManager.instance.cameraCtrl, true);
-            yield return null;
-            HeroController.instance.gameObject.transform.position = savePos;
-            HeroController.instance.transitionState = 0;
-            MethodInfo method = typeof(HeroController).GetMethod("FinishedEnteringScene", BindingFlags.Instance | BindingFlags.NonPublic);
-            if (method != null)
-            {
-                method.Invoke(HeroController.instance, new object[]
-                {
-                    true,
-                    false
-                });
-            }
+            HeroController.instance.TakeHealth(1);
+            HeroController.instance.AddHealth(1);
+            
+            GameManager.instance.inputHandler.RefreshPlayerData();
             yield break;
         }
     }
@@ -151,11 +163,8 @@ namespace Patches
     [MonoModPatch("global::GameManager")]
     public class GameManagerPatch : global::GameManager
     {
-        public extern void orig_Update();
-
-        public new void Update()
+        public void Update()
         {
-            orig_Update();
             if (Input.GetKeyDown(SaveStateManager.Keybinds.SaveStateButton))
             {
                 SaveStateManager.SaveState();
