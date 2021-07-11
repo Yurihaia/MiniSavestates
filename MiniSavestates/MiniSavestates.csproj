@@ -23,6 +23,9 @@
         <Reference Include="UnityEngine.JSONSerializeModule, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null">
             <HintPath>../vanilla/UnityEngine.JSONSerializeModule.dll</HintPath>
         </Reference>
+        <Reference Include="UnityEngine.IMGUIModule, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null">
+            <HintPath>../vanilla/UnityEngine.IMGUIModule.dll</HintPath>
+        </Reference>
     </ItemGroup>
     <ItemGroup>
         <Files Include="$(SolutionDir)Vanilla/*" />
