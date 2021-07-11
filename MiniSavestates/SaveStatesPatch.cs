@@ -142,19 +142,19 @@ namespace Patches
                 yield return null;
                 HeroController.instance.AddMPChargeSpa(tmpReserve);
             }
-            
+
             //Console.AddLine("LoadStateCoro end of func: " + data.savedPd.hazardRespawnLocation.ToString());
             //HeroController.instance.SetHazardRespawn(savedPd.hazardRespawnLocation, savedPd.hazardRespawnFacingRight);
             HeroController.instance.proxyFSM.SendEvent("HeroCtrl-HeroDamaged");
             HeroAnimationController component = HeroController.instance.GetComponent<HeroAnimationController>();
             typeof(HeroAnimationController).GetField("pd", BindingFlags.Instance | BindingFlags.NonPublic).SetValue(component, PlayerData.instance);
-           
+
             HeroController.instance.TakeHealth(1);
             HeroController.instance.AddHealth(1);
             GameCameras.instance.hudCanvas.gameObject.SetActive(true);
             HeroController.instance.TakeHealth(1);
             HeroController.instance.AddHealth(1);
-            
+
             GameManager.instance.inputHandler.RefreshPlayerData();
             yield break;
         }
@@ -163,6 +163,44 @@ namespace Patches
     [MonoModPatch("global::GameManager")]
     public class GameManagerPatch : global::GameManager
     {
+        private void OnGUI()
+        {
+            if (this.GetSceneNameString() == Constants.MENU_SCENE)
+            {
+                var oldBackgroundColor = GUI.backgroundColor;
+                var oldContentColor = GUI.contentColor;
+                var oldColor = GUI.color;
+                var oldMatrix = GUI.matrix;
+
+                GUI.backgroundColor = Color.white;
+                GUI.contentColor = Color.white;
+                GUI.color = Color.white;
+                GUI.matrix = Matrix4x4.TRS(
+                    Vector3.zero,
+                    Quaternion.identity,
+                    new Vector3(Screen.width / 1920f, Screen.height / 1080f, 1f)
+                );
+
+                GUI.Label(
+                    new Rect(20f, 20f, 200f, 200f),
+                    "MiniSavestates Active",
+                    new GUIStyle
+                    {
+                        fontSize = 30,
+                        normal = new GUIStyleState
+                        {
+                            textColor = Color.white,
+                        }
+                    }
+                );
+
+                GUI.backgroundColor = oldBackgroundColor;
+                GUI.contentColor = oldContentColor;
+                GUI.color = oldColor;
+                GUI.matrix = oldMatrix;
+            }
+        }
+
         public void Update()
         {
             if (Input.GetKeyDown(SaveStateManager.Keybinds.SaveStateButton))
